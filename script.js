@@ -444,8 +444,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const observerOptions = {
     root: null,
-    rootMargin: '50px', // Margen equilibrado para anticipar la carga sin saturar
-    threshold: 0.15     // Se activa cuando el 15% del contenedor es visible
+    rootMargin: '0px', // Margen equilibrado para anticipar la carga sin saturar
+    threshold: 0.25     // Se activa cuando el 15% del contenedor es visible
   };
 
   const videoObserver = new IntersectionObserver((entries) => {
@@ -458,6 +458,8 @@ document.addEventListener('DOMContentLoaded', () => {
           video.src = video.dataset.src;
         }
 
+
+        videos.forEach(v => { if (v !== video) v.pause(); });
         // 2. Esperamos a que el navegador tenga suficientes datos antes de darle Play
         // Esto evita conflictos con el hilo de renderizado de la GPU
         video.play().catch(error => {
@@ -469,12 +471,6 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         // 3. APAGADO ESTRICTO: Si no es visible, pausamos de inmediato
         video.pause();
-
-        // Liberamos memoria de decodificación de fotogramas reiniciando sutilmente el buffer del que salió
-        // sin romper el lazy load inicial
-        if (video.src && video.readyState > 0) {
-          video.currentTime = 0; // Regresa al inicio para liberar la caché de reproducción activa
-        }
       }
     });
   }, observerOptions);
