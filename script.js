@@ -435,43 +435,57 @@ dynamicStyles.textContent = `
 document.head.appendChild(dynamicStyles);
 
 
-/* ─── OPTIMIZACIÓN AVANZADA: Lazy Loading de rutas + Auto-play/pause ─── */
-/* ─── OPTIMIZACIÓN AVANZADA: Lazy Loading Real + Control Estricto de Memoria ─── */
 document.addEventListener('DOMContentLoaded', () => {
   const videos = document.querySelectorAll('.gal-item video');
 
   if (!videos.length) return;
 
+  // Carga las <source> reales (lazy) solo la primera vez que el video es visible
+  function loadVideo(video) {
+    if (video.dataset.loaded) return;
+    video.dataset.loaded = 'true';
+
+    video.querySelectorAll('source[data-src]').forEach(source => {
+      source.src = source.dataset.src;
+    });
+
+    video.addEventListener('error', () => {
+      video.closest('.gal-item')?.classList.add('gal-item--video-error');
+    });
+
+    video.load();
+  }
+
+  function playVideo(video) {
+    if (video.paused) {
+      video.play().catch(error => {
+        if (error.name !== 'AbortError') {
+          console.log('Autoplay controlado:', error.message);
+        }
+      });
+    }
+  }
+
   const observerOptions = {
     root: null,
-    rootMargin: '150px', // Margen equilibrado para anticipar la carga sin saturar
-    threshold: 0.25     // Se activa cuando el 15% del contenedor es visible
+    rootMargin: '150px',
+    threshold: 0.25
   };
 
+  // Cada video se carga y reproduce de forma independiente al entrar en viewport,
+  // y se pausa (sin descargar) al salir, para ahorrar CPU/batería sin recargar streams.
   const videoObserver = new IntersectionObserver((entries) => {
-    let toPlay = null;
-
     entries.forEach(entry => {
       const video = entry.target;
 
       if (entry.isIntersecting) {
-        if (!video.src && video.dataset.src) {
-          video.src = video.dataset.src;
-        }
-        toPlay = video; // solo guardamos cuál debe reproducirse
+        loadVideo(video);
+        playVideo(video);
       } else {
         video.pause();
       }
     });
-
-    if (toPlay) {
-      videos.forEach(v => { if (v !== toPlay) v.pause(); });
-      toPlay.play().catch(error => {
-        if (error.name !== 'AbortError') {
-          console.log("Autoplay controlado:", error.message);
-        }
-      });
-    }
   }, observerOptions);
+
   videos.forEach(video => videoObserver.observe(video));
 });

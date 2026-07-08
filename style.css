@@ -1058,6 +1058,10 @@ button {
   display: none;
 }
 
+.gal-item--video-error video {
+  opacity: 0;
+}
+
 .gal-overlay {
   position: absolute;
   inset: 0;
