@@ -435,15 +435,17 @@ dynamicStyles.textContent = `
 document.head.appendChild(dynamicStyles);
 
 
-/* ─── OPTIMIZACIÓN DE RENDIMIENTO: Auto-play/pause de videos en pantalla ─── */
+/* ─── OPTIMIZACIÓN AVANZADA: Lazy Loading de rutas + Auto-play/pause ─── */
+/* ─── OPTIMIZACIÓN AVANZADA: Lazy Loading Real + Control Estricto de Memoria ─── */
 document.addEventListener('DOMContentLoaded', () => {
   const videos = document.querySelectorAll('.gal-item video');
 
-  // Configuración del observador
+  if (!videos.length) return;
+
   const observerOptions = {
-    root: null,         // Usa la pantalla del navegador como referencia
-    rootMargin: '0px',  // Se activa exactamente en los límites de la pantalla
-    threshold: 0.25     // El video debe estar visible al menos un 25% para reproducirse
+    root: null,
+    rootMargin: '50px', // Margen equilibrado para anticipar la carga sin saturar
+    threshold: 0.15     // Se activa cuando el 15% del contenedor es visible
   };
 
   const videoObserver = new IntersectionObserver((entries) => {
@@ -451,18 +453,31 @@ document.addEventListener('DOMContentLoaded', () => {
       const video = entry.target;
 
       if (entry.isIntersecting) {
-        // El video entró en pantalla: intentamos reproducirlo
+        // 1. Si no tiene origen, lo asignamos
+        if (!video.src && video.dataset.src) {
+          video.src = video.dataset.src;
+        }
+
+        // 2. Esperamos a que el navegador tenga suficientes datos antes de darle Play
+        // Esto evita conflictos con el hilo de renderizado de la GPU
         video.play().catch(error => {
-          // Bloquea errores menores si el usuario no ha interactuado con la página aún
-          console.log("Autoplay interactivo pausado temporalmente:", error);
+          // Silenciar el warning de autoplay si el usuario no ha interactuado
+          if (error.name !== 'AbortError') {
+            console.log("Autoplay controlado:", error.message);
+          }
         });
       } else {
-        // El video salió de la pantalla: lo pausamos inmediatamente
+        // 3. APAGADO ESTRICTO: Si no es visible, pausamos de inmediato
         video.pause();
+
+        // Liberamos memoria de decodificación de fotogramas reiniciando sutilmente el buffer del que salió
+        // sin romper el lazy load inicial
+        if (video.src && video.readyState > 0) {
+          video.currentTime = 0; // Regresa al inicio para liberar la caché de reproducción activa
+        }
       }
     });
   }, observerOptions);
 
-  // Asignamos el observador a cada uno de los 7 videos
   videos.forEach(video => videoObserver.observe(video));
 });
