@@ -444,36 +444,34 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const observerOptions = {
     root: null,
-    rootMargin: '0px', // Margen equilibrado para anticipar la carga sin saturar
+    rootMargin: '150px', // Margen equilibrado para anticipar la carga sin saturar
     threshold: 0.25     // Se activa cuando el 15% del contenedor es visible
   };
 
   const videoObserver = new IntersectionObserver((entries) => {
+    let toPlay = null;
+
     entries.forEach(entry => {
       const video = entry.target;
 
       if (entry.isIntersecting) {
-        // 1. Si no tiene origen, lo asignamos
         if (!video.src && video.dataset.src) {
           video.src = video.dataset.src;
         }
-
-
-        videos.forEach(v => { if (v !== video) v.pause(); });
-        // 2. Esperamos a que el navegador tenga suficientes datos antes de darle Play
-        // Esto evita conflictos con el hilo de renderizado de la GPU
-        video.play().catch(error => {
-          // Silenciar el warning de autoplay si el usuario no ha interactuado
-          if (error.name !== 'AbortError') {
-            console.log("Autoplay controlado:", error.message);
-          }
-        });
+        toPlay = video; // solo guardamos cuál debe reproducirse
       } else {
-        // 3. APAGADO ESTRICTO: Si no es visible, pausamos de inmediato
         video.pause();
       }
     });
-  }, observerOptions);
 
+    if (toPlay) {
+      videos.forEach(v => { if (v !== toPlay) v.pause(); });
+      toPlay.play().catch(error => {
+        if (error.name !== 'AbortError') {
+          console.log("Autoplay controlado:", error.message);
+        }
+      });
+    }
+  }, observerOptions);
   videos.forEach(video => videoObserver.observe(video));
 });
